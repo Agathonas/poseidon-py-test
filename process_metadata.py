@@ -16,7 +16,6 @@ def read_metadata(file_path):
     sheet = doc.sheets[0]
     metadata_list = []
 
-    # Skip header row by using `enumerate` and skipping the first iteration
     for i, row in enumerate(sheet.rows()):
         if i == 0:
             continue  # Skip header row
@@ -25,10 +24,10 @@ def read_metadata(file_path):
         metadata = {
             "token_id": int(values[0]),
             "person_name": values[1],
-            "birthplace": values[2],
-            "ethnicity": values[3],
-            "occupation": values[4],
-            "special_trait": values[5] if len(values) > 5 else ""
+            "birthplace": {"trait_type": "birthplace", "value": values[2]},
+            "ethnicity": {"trait_type": "ethnicity", "value": values[3]},
+            "occupation": {"trait_type": "occupation", "value": values[4]},
+            "special_trait": {"trait_type": "special_trait", "value": values[5] if len(values) > 5 else ""}
         }
         metadata_list.append(metadata)
     return metadata_list
@@ -37,12 +36,12 @@ def read_metadata(file_path):
 def generate_hash(metadata):
     concatenated = (
         str(metadata["token_id"]).encode() +
-        metadata["person_name"].encode() +
-        metadata["birthplace"].encode() +
-        metadata["ethnicity"].encode() +
-        metadata["occupation"].encode() +
-        (metadata["special_trait"] or "").encode()
+        metadata["person_name"].encode()
     )
+    
+    for key in ["birthplace", "ethnicity", "occupation", "special_trait"]:
+        concatenated += metadata[key]["trait_type"].encode() + metadata[key]["value"].encode()
+    
     # Split the concatenated data into chunks that fit within u_int256_t
     chunks = [int.from_bytes(concatenated[i:i+31], 'big') for i in range(0, len(concatenated), 31)]
     hash_value = poseidon_hash_many(chunks)
@@ -59,7 +58,7 @@ def compute_merkle_root(hashes):
         hashes = new_level
     return hashes[0]
 
-# Convert large integer to felt252 (hex string format within 31 characters)
+# Convert large integer to felt252 (decimal string format within 31 characters)
 def to_felt252(value):
     felt252_max_digits = 77  # max digits for a 252-bit integer in decimal
     felt252_str = str(value)  # Convert to string
